@@ -1,0 +1,89 @@
+{
+  "profileId": "gamesir_t3_lite_mode2",
+  "displayName": "GameSir T3 Lite / XInput - Helicopter Mode 2",
+  "description": "Maps a standard gamepad (such as GameSir T3 Lite) to a vJoy HOTAS device in Helicopter Mode 2 (Left Stick: Collective/Yaw, Right Stick: Cyclic Pitch/Roll). Designed for clean 1:1 pass-through so in-game HOTAS settings handle curves and assists.",
+  "input": {
+    "backend": "XInput",
+    "controllerIndex": 0,
+    "pollingRateHz": 250,
+    "passthroughToggleCombo": ["Back", "Start"]
+  },
+  "vjoyTarget": {
+    "deviceId": 1,
+    "requiredButtons": 16,
+    "requiredContPovs": 1,
+    "requiredAxes": ["X", "Y", "Z", "Rx", "Ry", "Rz", "Sl0", "Sl1"]
+  },
+  "axes": [
+    {
+      "name": "Cyclic Roll (Right Stick X)",
+      "source": "RightThumbX",
+      "target": "X",
+      "invert": false,
+      "deadzone": 0.0
+    },
+    {
+      "name": "Cyclic Pitch (Right Stick Y)",
+      "source": "RightThumbY",
+      "target": "Y",
+      "invert": true,
+      "deadzone": 0.0
+    },
+    {
+      "name": "Collective / Throttle (Left Stick Y)",
+      "source": "LeftThumbY",
+      "target": "Z",
+      "invert": false,
+      "deadzone": 0.0
+    },
+    {
+      "name": "Yaw / Rudder (Left Stick X)",
+      "source": "LeftThumbX",
+      "target": "Rz",
+      "invert": false,
+      "deadzone": 0.0
+    },
+    {
+      "name": "Left Trigger Axis (LT)",
+      "source": "LeftTrigger",
+      "target": "Rx",
+      "invert": false,
+      "deadzone": 0.0
+    },
+    {
+      "name": "Right Trigger Axis (RT)",
+      "source": "RightTrigger",
+      "target": "Ry",
+      "invert": false,
+      "deadzone": 0.0
+    }
+  ],
+  "povs": [
+    {
+      "name": "D-Pad to HAT POV 1",
+      "targetPov": 1,
+      "up": "DPadUp",
+      "right": "DPadRight",
+      "down": "DPadDown",
+      "left": "DPadLeft"
+    }
+  ],
+  "buttons": [
+    { "targetButton": 1,  "source": "A",             "label": "A (Cross)" },
+    { "targetButton": 2,  "source": "B",             "label": "B (Circle)" },
+    { "targetButton": 3,  "source": "X",             "label": "X (Square)" },
+    { "targetButton": 4,  "source": "Y",             "label": "Y (Triangle)" },
+    { "targetButton": 5,  "source": "LeftShoulder",  "label": "LB (L1)" },
+    { "targetButton": 6,  "source": "RightShoulder", "label": "RB (R1)" },
+    { "targetButton": 7,  "source": "Back",          "label": "Back / Select" },
+    { "targetButton": 8,  "source": "Start",         "label": "Start / Menu" },
+    { "targetButton": 9,  "source": "LeftThumb",     "label": "L3 (Left Stick Click)" },
+    { "targetButton": 10, "source": "RightThumb",    "label": "R3 (Right Stick Click)" },
+    { "targetButton": 11, "source": "LeftTriggerButton",  "label": "LT Digital Click (>50%)" },
+    { "targetButton": 12, "source": "RightTriggerButton", "label": "RT Digital Click (>50%)" },
+    { "targetButton": 13, "source": "DPadUp",        "label": "D-Pad Up (Button)" },
+    { "targetButton": 14, "source": "DPadRight",     "label": "D-Pad Right (Button)" },
+    { "targetButton": 15, "source": "DPadDown",      "label": "D-Pad Down (Button)" },
+    { "targetButton": 16, "source": "DPadLeft",      "label": "D-Pad Left (Button)" }
+  ]
+}

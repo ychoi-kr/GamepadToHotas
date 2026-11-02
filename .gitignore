@@ -1,0 +1,11 @@
+# Build artifacts
+*.exe
+*.pdb
+*.obj
+selftest_result.txt
+
+# OS / Editor files
+.vs/
+.vscode/
+Thumbs.db
+.DS_Store
