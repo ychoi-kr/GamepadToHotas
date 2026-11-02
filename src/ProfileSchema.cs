@@ -56,6 +56,42 @@ namespace GamepadToHotas
             return profile;
         }
 
+        public static ControllerProfile CreateDefaultMode2Profile()
+        {
+            var p = new ControllerProfile
+            {
+                profileId = "gamesir_t3_lite_mode2",
+                displayName = "GameSir T3 Lite / XInput - Helicopter Mode 2",
+                description = "Maps a standard gamepad (such as GameSir T3 Lite) to a vJoy HOTAS device in Helicopter Mode 2 (Left Stick: Collective/Yaw, Right Stick: Cyclic Pitch/Roll)."
+            };
+            p.axes.Add(new AxisRule { name = "Cyclic Roll (Right Stick X)", source = "RightThumbX", target = "X", invert = false, deadzone = 0.0 });
+            p.axes.Add(new AxisRule { name = "Cyclic Pitch (Right Stick Y)", source = "RightThumbY", target = "Y", invert = true, deadzone = 0.0 });
+            p.axes.Add(new AxisRule { name = "Collective / Throttle (Left Stick Y)", source = "LeftThumbY", target = "Z", invert = false, deadzone = 0.0 });
+            p.axes.Add(new AxisRule { name = "Yaw / Rudder (Left Stick X)", source = "LeftThumbX", target = "Rz", invert = false, deadzone = 0.0 });
+            p.axes.Add(new AxisRule { name = "Left Trigger Axis (LT)", source = "LeftTrigger", target = "Rx", invert = false, deadzone = 0.0 });
+            p.axes.Add(new AxisRule { name = "Right Trigger Axis (RT)", source = "RightTrigger", target = "Ry", invert = false, deadzone = 0.0 });
+
+            p.povs.Add(new PovRule { name = "D-Pad to HAT POV 1", targetPov = 1, up = "DPadUp", right = "DPadRight", down = "DPadDown", left = "DPadLeft" });
+
+            p.buttons.Add(new ButtonRule { targetButton = 1, source = "A", label = "A (Cross)" });
+            p.buttons.Add(new ButtonRule { targetButton = 2, source = "B", label = "B (Circle)" });
+            p.buttons.Add(new ButtonRule { targetButton = 3, source = "X", label = "X (Square)" });
+            p.buttons.Add(new ButtonRule { targetButton = 4, source = "Y", label = "Y (Triangle)" });
+            p.buttons.Add(new ButtonRule { targetButton = 5, source = "LeftShoulder", label = "LB (L1)" });
+            p.buttons.Add(new ButtonRule { targetButton = 6, source = "RightShoulder", label = "RB (R1)" });
+            p.buttons.Add(new ButtonRule { targetButton = 7, source = "Back", label = "Back / Select" });
+            p.buttons.Add(new ButtonRule { targetButton = 8, source = "Start", label = "Start / Menu" });
+            p.buttons.Add(new ButtonRule { targetButton = 9, source = "LeftThumb", label = "L3 (Left Stick Click)" });
+            p.buttons.Add(new ButtonRule { targetButton = 10, source = "RightThumb", label = "R3 (Right Stick Click)" });
+            p.buttons.Add(new ButtonRule { targetButton = 11, source = "LeftTriggerButton", label = "LT Digital Click (>50%)" });
+            p.buttons.Add(new ButtonRule { targetButton = 12, source = "RightTriggerButton", label = "RT Digital Click (>50%)" });
+            p.buttons.Add(new ButtonRule { targetButton = 13, source = "DPadUp", label = "D-Pad Up (Button)" });
+            p.buttons.Add(new ButtonRule { targetButton = 14, source = "DPadRight", label = "D-Pad Right (Button)" });
+            p.buttons.Add(new ButtonRule { targetButton = 15, source = "DPadDown", label = "D-Pad Down (Button)" });
+            p.buttons.Add(new ButtonRule { targetButton = 16, source = "DPadLeft", label = "D-Pad Left (Button)" });
+            return p;
+        }
+
         public void SaveToFile(string path = null)
         {
             string targetPath = path ?? FilePath;

@@ -254,6 +254,18 @@ namespace GamepadToHotas
             if (Directory.Exists(_profilesDir))
             {
                 string[] files = Directory.GetFiles(_profilesDir, "*.json");
+                if (files.Length == 0)
+                {
+                    try
+                    {
+                        string defaultPath = Path.Combine(_profilesDir, "gamesir_t3_lite_mode2.json");
+                        var defProfile = ControllerProfile.CreateDefaultMode2Profile();
+                        defProfile.SaveToFile(defaultPath);
+                        files = new string[] { defaultPath };
+                    }
+                    catch { }
+                }
+
                 Array.Sort(files, StringComparer.OrdinalIgnoreCase);
                 foreach (string f in files)
                 {
