@@ -121,7 +121,8 @@ namespace GamepadToHotas
             double rx = NormalizeShort(gp.sThumbRX);
             double ry = NormalizeShort(gp.sThumbRY);
 
-            // Triggers mapped to [-1.0, +1.0] for full vJoy axis range, and combined [-1.0, +1.0]
+            // Triggers mapped to [0.0 = neutral center (50%), +1.0 = full press (100%)]
+            // so released triggers remain at vJoy neutral (16384) instead of pulling axes to -100% (1).
             double ltNorm01 = gp.bLeftTrigger / 255.0;
             double rtNorm01 = gp.bRightTrigger / 255.0;
 
@@ -129,8 +130,8 @@ namespace GamepadToHotas
             result.Axes["LeftThumbY"] = ly;
             result.Axes["RightThumbX"] = rx;
             result.Axes["RightThumbY"] = ry;
-            result.Axes["LeftTrigger"] = (ltNorm01 * 2.0) - 1.0;
-            result.Axes["RightTrigger"] = (rtNorm01 * 2.0) - 1.0;
+            result.Axes["LeftTrigger"] = ltNorm01;
+            result.Axes["RightTrigger"] = rtNorm01;
             result.Axes["TriggersCombined"] = rtNorm01 - ltNorm01;
 
             ushort b = gp.wButtons;
@@ -221,14 +222,17 @@ namespace GamepadToHotas
             result.Axes["Axis4"] = ax4;
             result.Axes["Axis5"] = ax5;
 
-            // Also provide standard aliases so the same profile works seamlessly
+            // Also provide standard aliases so the same profile works seamlessly.
+            // Clamp triggers to [0.0, +1.0] so unpressed or missing WinMM axes rest at neutral (0.0 -> 50%).
+            double ltWinMM = Math.Max(0.0, ax4);
+            double rtWinMM = Math.Max(0.0, ax5);
             result.Axes["LeftThumbX"] = ax0;
             result.Axes["LeftThumbY"] = ax1;
             result.Axes["RightThumbX"] = ax2;
             result.Axes["RightThumbY"] = ax3;
-            result.Axes["LeftTrigger"] = ax4;
-            result.Axes["RightTrigger"] = ax5;
-            result.Axes["TriggersCombined"] = (ax5 - ax4) * 0.5;
+            result.Axes["LeftTrigger"] = ltWinMM;
+            result.Axes["RightTrigger"] = rtWinMM;
+            result.Axes["TriggersCombined"] = rtWinMM - ltWinMM;
 
             for (int i = 0; i < 32; i++)
             {

@@ -132,18 +132,45 @@ namespace GamepadToHotas
                 if (AcquireVJD(deviceId))
                 {
                     _acquiredDeviceId = deviceId;
-                    ResetVJD(deviceId);
+                    ResetToNeutral(deviceId);
                     return true;
                 }
             }
             return false;
         }
 
+        public void ResetToNeutral(uint deviceId)
+        {
+            if (deviceId == 0) return;
+            try
+            {
+                ResetVJD(deviceId);
+                foreach (var kvp in HidUsageMap)
+                {
+                    SetAxis(AXIS_MID, deviceId, kvp.Value);
+                }
+                for (byte b = 1; b <= 32; b++)
+                {
+                    SetBtn(false, deviceId, b);
+                }
+                for (byte p = 1; p <= 4; p++)
+                {
+                    SetContPov(-1, deviceId, p);
+                }
+            }
+            catch { }
+        }
+
         public void Relinquish()
         {
             if (_acquiredDeviceId != 0)
             {
-                try { RelinquishVJD(_acquiredDeviceId); } catch { }
+                try
+                {
+                    ResetToNeutral(_acquiredDeviceId);
+                    RelinquishVJD(_acquiredDeviceId);
+                }
+                catch { }
                 _acquiredDeviceId = 0;
             }
         }

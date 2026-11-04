@@ -46,12 +46,16 @@ namespace GamepadToHotas
                 {
                     Console.WriteLine("vJoy Driver Enabled: " + vjoy.IsDriverEnabled());
                     Console.WriteLine("vJoy #1 Status: " + vjoy.GetDeviceStatus(1));
+                    if (vjoy.IsDriverEnabled())
+                    {
+                        vjoy.Acquire(1);
+                    }
                 }
 
                 string reportPath = System.IO.Path.Combine(baseDir, "selftest_result.txt");
                 System.IO.File.WriteAllText(reportPath, string.Format(
-                    "OK | Profile={0} | Z={1} | X={2} | Btn1={3} | POV1={4}",
-                    profile.profileId, snap.Axes["Z"], snap.Axes["X"], snap.Buttons[0], snap.ContPovs[0]));
+                    "OK | Profile={0} | Z={1} | X={2} | Rx={3} | Ry={4} | Btn1={5} | POV1={6}",
+                    profile.profileId, snap.Axes["Z"], snap.Axes["X"], snap.Axes["Rx"], snap.Axes["Ry"], snap.Buttons[0], snap.ContPovs[0]));
                 return 0;
             }
             catch (Exception ex)

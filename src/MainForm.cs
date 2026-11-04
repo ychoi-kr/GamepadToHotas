@@ -548,6 +548,8 @@ namespace GamepadToHotas
 
         private void WorkerLoop()
         {
+            DateTime lastAcquireAttemptUtc = DateTime.MinValue;
+
             while (_running)
             {
                 var profile = _currentProfile;
@@ -555,6 +557,16 @@ namespace GamepadToHotas
 
                 if (profile != null)
                 {
+                    if (_vjoy.AcquiredDeviceId == 0 && profile.vjoyTarget != null)
+                    {
+                        DateTime now = DateTime.UtcNow;
+                        if ((now - lastAcquireAttemptUtc).TotalSeconds >= 1.0)
+                        {
+                            lastAcquireAttemptUtc = now;
+                            _vjoy.Acquire(profile.vjoyTarget.deviceId);
+                        }
+                    }
+
                     int hz = (profile.input != null && profile.input.pollingRateHz >= 30 && profile.input.pollingRateHz <= 1000)
                         ? profile.input.pollingRateHz
                         : 250;
@@ -698,6 +710,10 @@ namespace GamepadToHotas
         {
             _running = false;
             _uiTimer.Stop();
+            if (_workerThread != null && _workerThread.IsAlive)
+            {
+                try { _workerThread.Join(200); } catch { }
+            }
             _vjoy.Dispose();
             base.OnFormClosing(e);
         }
