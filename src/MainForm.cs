@@ -41,11 +41,92 @@ namespace GamepadToHotas
         {
             public AxisRule Rule;
             public Label TitleLabel;
-            public ProgressBar Bar;
+            public InstantAxisBar Bar;
             public Label ValueLabel;
             public CheckBox InvertCheck;
             public Button SoloBindMinusButton;
             public Button SoloBindPlusButton;
+            public int LastPct = -1;
+        }
+
+        /// <summary>
+        /// Custom lightweight axis bar without the Win32 ProgressBar forward-fill animation delay.
+        /// Repaints only when the value actually changes.
+        /// </summary>
+        private sealed class InstantAxisBar : Control
+        {
+            private static readonly SolidBrush BgBrush = new SolidBrush(Color.FromArgb(22, 25, 32));
+            private static readonly SolidBrush FillBrush = new SolidBrush(Color.FromArgb(46, 184, 92));
+            private static readonly Pen CenterTickPen = new Pen(Color.FromArgb(95, 110, 135), 1f);
+            private static readonly Pen BorderPen = new Pen(Color.FromArgb(70, 80, 100), 1f);
+
+            private int _minimum = VJoyOutput.AXIS_MIN;
+            private int _maximum = VJoyOutput.AXIS_MAX;
+            private int _value = VJoyOutput.AXIS_MID;
+
+            public int Minimum
+            {
+                get { return _minimum; }
+                set { _minimum = value; Invalidate(); }
+            }
+
+            public int Maximum
+            {
+                get { return _maximum; }
+                set { _maximum = value; Invalidate(); }
+            }
+
+            public int Value
+            {
+                get { return _value; }
+                set
+                {
+                    int clamped = Math.Max(_minimum, Math.Min(_maximum, value));
+                    if (_value != clamped)
+                    {
+                        _value = clamped;
+                        Invalidate();
+                    }
+                }
+            }
+
+            public InstantAxisBar()
+            {
+                SetStyle(
+                    ControlStyles.UserPaint |
+                    ControlStyles.AllPaintingInWmPaint |
+                    ControlStyles.OptimizedDoubleBuffer |
+                    ControlStyles.ResizeRedraw |
+                    ControlStyles.Opaque,
+                    true);
+                TabStop = false;
+            }
+
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                Graphics g = e.Graphics;
+                int w = Width;
+                int h = Height;
+
+                g.FillRectangle(BgBrush, 0, 0, w, h);
+
+                int range = _maximum - _minimum;
+                if (range > 0 && w > 2 && h > 2)
+                {
+                    int innerMaxW = w - 2;
+                    int fillW = (int)Math.Round(((double)(_value - _minimum) / range) * innerMaxW);
+                    if (fillW > 0)
+                    {
+                        if (fillW > innerMaxW) fillW = innerMaxW;
+                        g.FillRectangle(FillBrush, 1, 1, fillW, h - 2);
+                    }
+
+                    int midX = 1 + (innerMaxW / 2);
+                    g.DrawLine(CenterTickPen, midX, 1, midX, h - 2);
+                }
+
+                g.DrawRectangle(BorderPen, 0, 0, w - 1, h - 1);
+            }
         }
 
         private class ButtonUiCell
@@ -332,14 +413,13 @@ namespace GamepadToHotas
                         ForeColor = Color.FromArgb(220, 225, 235)
                     };
 
-                    var bar = new ProgressBar
+                    var bar = new InstantAxisBar
                     {
                         Location = new Point(260, y + 6),
                         Size = new Size(215, 20),
                         Minimum = VJoyOutput.AXIS_MIN,
                         Maximum = VJoyOutput.AXIS_MAX,
-                        Value = VJoyOutput.AXIS_MID,
-                        Style = ProgressBarStyle.Continuous
+                        Value = VJoyOutput.AXIS_MID
                     };
 
                     var valLbl = new Label
@@ -526,10 +606,13 @@ namespace GamepadToHotas
                 int val;
                 if (outSnap.Axes.TryGetValue(row.Rule.target, out val))
                 {
-                    int clamped = Math.Max(row.Bar.Minimum, Math.Min(row.Bar.Maximum, val));
-                    row.Bar.Value = clamped;
+                    row.Bar.Value = val;
                     int pct = (int)Math.Round(((val - VJoyOutput.AXIS_MIN) / (double)(VJoyOutput.AXIS_MAX - VJoyOutput.AXIS_MIN)) * 100.0);
-                    row.ValueLabel.Text = string.Format("{0}%", pct);
+                    if (row.LastPct != pct)
+                    {
+                        row.LastPct = pct;
+                        row.ValueLabel.Text = string.Format("{0}%", pct);
+                    }
                 }
             }
 

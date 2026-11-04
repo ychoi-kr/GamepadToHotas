@@ -1,5 +1,7 @@
 # Build artifacts
 *.exe
+*.exe.old
+*.zip
 *.pdb
 *.obj
 selftest_result.txt
