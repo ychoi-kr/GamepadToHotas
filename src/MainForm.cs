@@ -44,7 +44,8 @@ namespace GamepadToHotas
             public ProgressBar Bar;
             public Label ValueLabel;
             public CheckBox InvertCheck;
-            public Button SoloBindButton;
+            public Button SoloBindMinusButton;
+            public Button SoloBindPlusButton;
         }
 
         private class ButtonUiCell
@@ -166,12 +167,20 @@ namespace GamepadToHotas
             _lblPulseBanner = new Label
             {
                 Dock = DockStyle.Top,
-                Height = 34,
+                Height = 36,
                 TextAlign = ContentAlignment.MiddleCenter,
-                Text = "💡 Tip: To bind controls in Wardogs without gamepad double-input conflict, click [Bind (3s)] next to any axis/button below, then click the slot in Wardogs.",
+                Text = "💡 Tip: Click [Bind -] (Left/Down) or [Bind +] (Right/Up) below, then click the slot in Wardogs. (Click this banner anytime to stop pulsing)",
                 BackColor = Color.FromArgb(40, 48, 66),
                 ForeColor = Color.FromArgb(215, 228, 250),
-                Font = new Font("Segoe UI", 9f, FontStyle.Regular)
+                Font = new Font("Segoe UI", 9f, FontStyle.Regular),
+                Cursor = Cursors.Hand
+            };
+            _lblPulseBanner.Click += (s, e) =>
+            {
+                if (_engine.HasActivePulse)
+                {
+                    _engine.CancelBindPulse();
+                }
             };
 
             // 3. Main Content Container
@@ -319,14 +328,14 @@ namespace GamepadToHotas
                     {
                         Text = string.Format("{0}\n({1} ➔ vJoy {2})", currentRule.name, currentRule.source, currentRule.target),
                         Location = new Point(12, y),
-                        Size = new Size(255, 34),
+                        Size = new Size(245, 34),
                         ForeColor = Color.FromArgb(220, 225, 235)
                     };
 
                     var bar = new ProgressBar
                     {
-                        Location = new Point(275, y + 6),
-                        Size = new Size(250, 20),
+                        Location = new Point(260, y + 6),
+                        Size = new Size(215, 20),
                         Minimum = VJoyOutput.AXIS_MIN,
                         Maximum = VJoyOutput.AXIS_MAX,
                         Value = VJoyOutput.AXIS_MID,
@@ -336,8 +345,8 @@ namespace GamepadToHotas
                     var valLbl = new Label
                     {
                         Text = "50%",
-                        Location = new Point(532, y + 6),
-                        Size = new Size(65, 22),
+                        Location = new Point(480, y + 6),
+                        Size = new Size(52, 22),
                         TextAlign = ContentAlignment.MiddleRight,
                         ForeColor = Color.FromArgb(170, 200, 240)
                     };
@@ -346,8 +355,8 @@ namespace GamepadToHotas
                     {
                         Text = "Invert",
                         Checked = currentRule.invert,
-                        Location = new Point(610, y + 6),
-                        Size = new Size(70, 22),
+                        Location = new Point(540, y + 6),
+                        Size = new Size(65, 22),
                         ForeColor = Color.FromArgb(200, 205, 215)
                     };
                     chkInvert.CheckedChanged += (s, e) =>
@@ -356,13 +365,21 @@ namespace GamepadToHotas
                         try { _currentProfile.SaveToFile(); } catch { }
                     };
 
-                    var btnSolo = CreateStyledButton("Bind (3s)", new Point(690, y + 3), new Size(115, 26), Color.FromArgb(55, 80, 125));
-                    btnSolo.Click += (s, e) =>
+                    var btnMinus = CreateStyledButton("Bind - (Left/Dn)", new Point(610, y + 3), new Size(98, 26), Color.FromArgb(50, 75, 120));
+                    btnMinus.Font = new Font("Segoe UI", 8.2f, FontStyle.Regular);
+                    btnMinus.Click += (s, e) =>
                     {
-                        _engine.ScheduleAxisBindPulse(currentRule.target, currentRule.name, 3.0, 1.6);
+                        _engine.ScheduleAxisBindPulse(currentRule.target, currentRule.name, -1, 3.0, 7.5);
                     };
 
-                    _pnlAxesList.Controls.AddRange(new Control[] { lbl, bar, valLbl, chkInvert, btnSolo });
+                    var btnPlus = CreateStyledButton("Bind + (Right/Up)", new Point(712, y + 3), new Size(102, 26), Color.FromArgb(45, 95, 115));
+                    btnPlus.Font = new Font("Segoe UI", 8.2f, FontStyle.Regular);
+                    btnPlus.Click += (s, e) =>
+                    {
+                        _engine.ScheduleAxisBindPulse(currentRule.target, currentRule.name, 1, 3.0, 7.5);
+                    };
+
+                    _pnlAxesList.Controls.AddRange(new Control[] { lbl, bar, valLbl, chkInvert, btnMinus, btnPlus });
                     _axisRows.Add(new AxisUiRow
                     {
                         Rule = currentRule,
@@ -370,7 +387,8 @@ namespace GamepadToHotas
                         Bar = bar,
                         ValueLabel = valLbl,
                         InvertCheck = chkInvert,
-                        SoloBindButton = btnSolo
+                        SoloBindMinusButton = btnMinus,
+                        SoloBindPlusButton = btnPlus
                     });
 
                     y += 38;
@@ -391,7 +409,7 @@ namespace GamepadToHotas
                     btnCtrl.Font = new Font("Segoe UI", 8.5f, FontStyle.Regular);
                     btnCtrl.Click += (s, e) =>
                     {
-                        _engine.ScheduleButtonBindPulse(currentBtn.targetButton, currentBtn.label ?? currentBtn.source, 3.0, 0.9);
+                        _engine.ScheduleButtonBindPulse(currentBtn.targetButton, currentBtn.label ?? currentBtn.source, 3.0, 6.0);
                     };
 
                     _pnlButtonsGrid.Controls.Add(btnCtrl);
@@ -413,7 +431,7 @@ namespace GamepadToHotas
                 {
                     int idx = i;
                     var povBtn = CreateStyledButton(
-                        string.Format("POV #{0} {1}\n(Solo Bind 3s)", pov.targetPov, dirs[idx]),
+                        string.Format("POV #{0} {1}\n(Solo Bind)", pov.targetPov, dirs[idx]),
                         Point.Empty,
                         new Size(190, 44),
                         Color.FromArgb(52, 48, 72));
@@ -421,7 +439,7 @@ namespace GamepadToHotas
                     povBtn.Font = new Font("Segoe UI", 8.5f, FontStyle.Regular);
                     povBtn.Click += (s, e) =>
                     {
-                        _engine.SchedulePovBindPulse(pov.targetPov, angles[idx], "POV " + dirs[idx], 3.0, 0.9);
+                        _engine.SchedulePovBindPulse(pov.targetPov, angles[idx], "POV " + dirs[idx], 3.0, 6.0);
                     };
                     _pnlButtonsGrid.Controls.Add(povBtn);
                 }
@@ -538,7 +556,7 @@ namespace GamepadToHotas
             }
             else
             {
-                _lblPulseBanner.Text = "💡 Tip: To bind controls in Wardogs without gamepad double-input conflict, click [Bind (3s)] next to any axis/button below, then click the slot in Wardogs.";
+                _lblPulseBanner.Text = "💡 Tip: Click [Bind -] (Left/Down) or [Bind +] (Right/Up) below, then click the slot in Wardogs. (Click this banner anytime to stop pulsing)";
                 _lblPulseBanner.BackColor = Color.FromArgb(40, 48, 66);
                 _lblPulseBanner.ForeColor = Color.FromArgb(215, 228, 250);
             }

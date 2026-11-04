@@ -13,6 +13,7 @@ namespace GamepadToHotas
     {
         public string Description { get; set; }
         public string TargetAxis { get; set; }
+        public int AxisDirection { get; set; } // -1 = Min (0%), +1 = Max (100%), 0 = Full Sweep
         public int TargetButton { get; set; }
         public int TargetPovNumber { get; set; }
         public int TargetPovAngle { get; set; }
@@ -31,19 +32,31 @@ namespace GamepadToHotas
         private bool _comboWasDown = false;
         private SoloBindingPulse _activePulse = null;
 
-        public void ScheduleAxisBindPulse(string axisTarget, string label, double delaySec = 3.0, double durationSec = 1.5)
+        public void CancelBindPulse()
         {
+            _activePulse = null;
+        }
+
+        public bool HasActivePulse
+        {
+            get { return _activePulse != null; }
+        }
+
+        public void ScheduleAxisBindPulse(string axisTarget, string label, int direction = 0, double delaySec = 3.0, double durationSec = 7.5)
+        {
+            string dirTag = (direction < 0) ? " [- / Left / Down]" : (direction > 0 ? " [+ / Right / Up]" : " [Full Sweep]");
             _activePulse = new SoloBindingPulse
             {
-                Description = "Binding Axis [" + axisTarget + "] (" + label + ")",
+                Description = "Binding Axis [" + axisTarget + "]" + dirTag + " (" + label + ")",
                 TargetAxis = axisTarget,
+                AxisDirection = direction,
                 CreatedUtc = DateTime.UtcNow,
                 DelaySeconds = delaySec,
                 DurationSeconds = durationSec
             };
         }
 
-        public void ScheduleButtonBindPulse(int buttonNumber, string label, double delaySec = 3.0, double durationSec = 0.8)
+        public void ScheduleButtonBindPulse(int buttonNumber, string label, double delaySec = 3.0, double durationSec = 6.0)
         {
             _activePulse = new SoloBindingPulse
             {
@@ -55,7 +68,7 @@ namespace GamepadToHotas
             };
         }
 
-        public void SchedulePovBindPulse(int povNumber, int angleHundredths, string label, double delaySec = 3.0, double durationSec = 0.8)
+        public void SchedulePovBindPulse(int povNumber, int angleHundredths, string label, double delaySec = 3.0, double durationSec = 6.0)
         {
             _activePulse = new SoloBindingPulse
             {
@@ -77,11 +90,12 @@ namespace GamepadToHotas
             if (elapsed < pulse.DelaySeconds)
             {
                 double remain = pulse.DelaySeconds - elapsed;
-                return string.Format("⏳ {0} in {1:0.0}s... (Click in-game bind slot now!)", pulse.Description, remain);
+                return string.Format("⏳ {0} starts in {1:0.0}s... Switch to Wardogs now! (Click here to Cancel)", pulse.Description, remain);
             }
             if (elapsed < pulse.DelaySeconds + pulse.DurationSeconds)
             {
-                return string.Format("⚡ PULSING NOW: {0}!", pulse.Description);
+                double remain = (pulse.DelaySeconds + pulse.DurationSeconds) - elapsed;
+                return string.Format("⚡ PULSING NOW ({1:0.0}s left): {0} — Click here to Stop", pulse.Description, remain);
             }
 
             _activePulse = null;
@@ -138,20 +152,52 @@ namespace GamepadToHotas
                 }
                 else if (elapsed < pulse.DelaySeconds + pulse.DurationSeconds)
                 {
-                    // During pulse window, oscillate the target axis or press the target button
+                    double pulseTime = elapsed - pulse.DelaySeconds;
                     if (!string.IsNullOrEmpty(pulse.TargetAxis))
                     {
-                        double phase = (elapsed - pulse.DelaySeconds) / pulse.DurationSeconds;
-                        int val = (phase < 0.5) ? VJoyOutput.AXIS_MAX : VJoyOutput.AXIS_MIN;
+                        // Smooth 1.5-second sweep cycles:
+                        // 0.00..0.35: ramp from center to target extreme
+                        // 0.35..0.65: hold at target extreme
+                        // 0.65..0.85: return to center
+                        // 0.85..1.00: hold at center
+                        const double cycleLen = 1.5;
+                        int cycleIdx = (int)(pulseTime / cycleLen);
+                        double t = (pulseTime % cycleLen) / cycleLen;
+
+                        double factor = 0.0;
+                        if (t < 0.35)
+                            factor = t / 0.35;
+                        else if (t < 0.65)
+                            factor = 1.0;
+                        else if (t < 0.85)
+                            factor = 1.0 - ((t - 0.65) / 0.20);
+                        else
+                            factor = 0.0;
+
+                        int dir = pulse.AxisDirection;
+                        if (dir == 0)
+                        {
+                            // Alternate +1 and -1 on each cycle if full sweep
+                            dir = (cycleIdx % 2 == 0) ? 1 : -1;
+                        }
+
+                        int extreme = (dir < 0) ? VJoyOutput.AXIS_MIN : VJoyOutput.AXIS_MAX;
+                        int val = (int)Math.Round(VJoyOutput.AXIS_MID + factor * (extreme - VJoyOutput.AXIS_MID));
+                        if (val < VJoyOutput.AXIS_MIN) val = VJoyOutput.AXIS_MIN;
+                        if (val > VJoyOutput.AXIS_MAX) val = VJoyOutput.AXIS_MAX;
+
                         outState.Axes[pulse.TargetAxis] = val;
                     }
                     else if (pulse.TargetButton >= 1 && pulse.TargetButton <= 32)
                     {
-                        outState.Buttons[pulse.TargetButton - 1] = true;
+                        // Repeatedly press for 0.7s and release for 0.5s so edge-triggered UI prompts catch it reliably
+                        double cyclePhase = (pulseTime % 1.2) / 1.2;
+                        outState.Buttons[pulse.TargetButton - 1] = (cyclePhase < 0.6);
                     }
                     else if (pulse.TargetPovNumber >= 1 && pulse.TargetPovNumber <= 4)
                     {
-                        outState.ContPovs[pulse.TargetPovNumber - 1] = pulse.TargetPovAngle;
+                        double cyclePhase = (pulseTime % 1.2) / 1.2;
+                        outState.ContPovs[pulse.TargetPovNumber - 1] = (cyclePhase < 0.6) ? pulse.TargetPovAngle : -1;
                     }
                     return outState;
                 }
