@@ -30,17 +30,28 @@ namespace GamepadToHotas
 
                 var engine = new MappingEngine();
                 var mockInput = new NormalizedControllerState { IsConnected = true, BackendName = "MockXInput" };
-                mockInput.Axes["LeftThumbY"] = 0.5;   // Collective 75%
+
+                // 1. Test idle state (LeftThumbY = 0.0 -> Btn 14 & Btn 15 both OFF, Z = 16384 neutral)
+                var snapIdle = engine.Evaluate(mockInput, profile);
+                bool idleBtn14 = snapIdle.Buttons[13];
+                bool idleBtn15 = snapIdle.Buttons[14];
+
+                // 2. Push LeftThumbY up to +1.0 -> Btn 15 (Collective Up) ON, Btn 14 OFF
+                mockInput.Axes["LeftThumbY"] = 1.0;
                 mockInput.Axes["RightThumbX"] = -0.5; // Roll 25%
                 mockInput.PressedButtons.Add("A");
                 mockInput.PressedButtons.Add("DPadUp");
+                var snapUp = engine.Evaluate(mockInput, profile);
 
-                var snap = engine.Evaluate(mockInput, profile);
+                // 3. Pull LeftThumbY down to -1.0 -> Btn 15 OFF, Btn 14 (Collective Down) ON
+                mockInput.Axes["LeftThumbY"] = -1.0;
+                var snapDown = engine.Evaluate(mockInput, profile);
+
                 Console.WriteLine("Profile loaded: " + profile.displayName);
-                Console.WriteLine("Evaluated Z (Collective): " + snap.Axes["Z"]);
-                Console.WriteLine("Evaluated X (Roll): " + snap.Axes["X"]);
-                Console.WriteLine("Button 1 (A) pressed: " + snap.Buttons[0]);
-                Console.WriteLine("POV 1 angle: " + snap.ContPovs[0]);
+                Console.WriteLine("Idle Btn14/Btn15: " + idleBtn14 + "/" + idleBtn15);
+                Console.WriteLine("Up Btn14/Btn15: " + snapUp.Buttons[13] + "/" + snapUp.Buttons[14]);
+                Console.WriteLine("Down Btn14/Btn15: " + snapDown.Buttons[13] + "/" + snapDown.Buttons[14]);
+                Console.WriteLine("Evaluated X (Roll): " + snapUp.Axes["X"]);
 
                 using (var vjoy = new VJoyOutput())
                 {
@@ -54,8 +65,8 @@ namespace GamepadToHotas
 
                 string reportPath = System.IO.Path.Combine(baseDir, "selftest_result.txt");
                 System.IO.File.WriteAllText(reportPath, string.Format(
-                    "OK | Profile={0} | Z={1} | X={2} | Rx={3} | Ry={4} | Btn1={5} | POV1={6}",
-                    profile.profileId, snap.Axes["Z"], snap.Axes["X"], snap.Axes["Rx"], snap.Axes["Ry"], snap.Buttons[0], snap.ContPovs[0]));
+                    "OK | Profile={0} | Z={1} | X={2} | Idle14_15={3}_{4} | Up15={5} | Down14={6} | Btn1={7} | POV1={8}",
+                    profile.profileId, snapUp.Axes["Z"], snapUp.Axes["X"], idleBtn14, idleBtn15, snapUp.Buttons[14], snapDown.Buttons[13], snapUp.Buttons[0], snapUp.ContPovs[0]));
                 return 0;
             }
             catch (Exception ex)

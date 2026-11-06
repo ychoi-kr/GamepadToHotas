@@ -44,9 +44,11 @@ namespace GamepadToHotas
             public InstantAxisBar Bar;
             public Label ValueLabel;
             public CheckBox InvertCheck;
+            public CheckBox GroundLatchCheck;
             public Button SoloBindMinusButton;
             public Button SoloBindPlusButton;
             public int LastPct = -1;
+            public bool LastLatched = false;
         }
 
         /// <summary>
@@ -408,15 +410,15 @@ namespace GamepadToHotas
                     var lbl = new Label
                     {
                         Text = string.Format("{0}\n({1} ➔ vJoy {2})", currentRule.name, currentRule.source, currentRule.target),
-                        Location = new Point(12, y),
-                        Size = new Size(245, 34),
+                        Location = new Point(10, y),
+                        Size = new Size(230, 34),
                         ForeColor = Color.FromArgb(220, 225, 235)
                     };
 
                     var bar = new InstantAxisBar
                     {
-                        Location = new Point(260, y + 6),
-                        Size = new Size(215, 20),
+                        Location = new Point(242, y + 6),
+                        Size = new Size(172, 20),
                         Minimum = VJoyOutput.AXIS_MIN,
                         Maximum = VJoyOutput.AXIS_MAX,
                         Value = VJoyOutput.AXIS_MID
@@ -425,8 +427,8 @@ namespace GamepadToHotas
                     var valLbl = new Label
                     {
                         Text = "50%",
-                        Location = new Point(480, y + 6),
-                        Size = new Size(52, 22),
+                        Location = new Point(416, y + 6),
+                        Size = new Size(74, 22),
                         TextAlign = ContentAlignment.MiddleRight,
                         ForeColor = Color.FromArgb(170, 200, 240)
                     };
@@ -435,8 +437,8 @@ namespace GamepadToHotas
                     {
                         Text = "Invert",
                         Checked = currentRule.invert,
-                        Location = new Point(540, y + 6),
-                        Size = new Size(65, 22),
+                        Location = new Point(494, y + 6),
+                        Size = new Size(58, 22),
                         ForeColor = Color.FromArgb(200, 205, 215)
                     };
                     chkInvert.CheckedChanged += (s, e) =>
@@ -445,21 +447,36 @@ namespace GamepadToHotas
                         try { _currentProfile.SaveToFile(); } catch { }
                     };
 
-                    var btnMinus = CreateStyledButton("Bind - (Left/Dn)", new Point(610, y + 3), new Size(98, 26), Color.FromArgb(50, 75, 120));
+                    var chkLatch = new CheckBox
+                    {
+                        Text = "Latch 0%",
+                        Checked = currentRule.groundLatch,
+                        Location = new Point(554, y + 6),
+                        Size = new Size(76, 22),
+                        ForeColor = Color.FromArgb(235, 205, 135)
+                    };
+                    chkLatch.CheckedChanged += (s, e) =>
+                    {
+                        currentRule.groundLatch = chkLatch.Checked;
+                        _engine.SetAxisGroundLatched(currentRule.target, chkLatch.Checked);
+                        try { _currentProfile.SaveToFile(); } catch { }
+                    };
+
+                    var btnMinus = CreateStyledButton("Bind - (Dn)", new Point(632, y + 3), new Size(90, 26), Color.FromArgb(50, 75, 120));
                     btnMinus.Font = new Font("Segoe UI", 8.2f, FontStyle.Regular);
                     btnMinus.Click += (s, e) =>
                     {
                         _engine.ScheduleAxisBindPulse(currentRule.target, currentRule.name, -1, 3.0, 7.5);
                     };
 
-                    var btnPlus = CreateStyledButton("Bind + (Right/Up)", new Point(712, y + 3), new Size(102, 26), Color.FromArgb(45, 95, 115));
+                    var btnPlus = CreateStyledButton("Bind + (Up)", new Point(726, y + 3), new Size(90, 26), Color.FromArgb(45, 95, 115));
                     btnPlus.Font = new Font("Segoe UI", 8.2f, FontStyle.Regular);
                     btnPlus.Click += (s, e) =>
                     {
                         _engine.ScheduleAxisBindPulse(currentRule.target, currentRule.name, 1, 3.0, 7.5);
                     };
 
-                    _pnlAxesList.Controls.AddRange(new Control[] { lbl, bar, valLbl, chkInvert, btnMinus, btnPlus });
+                    _pnlAxesList.Controls.AddRange(new Control[] { lbl, bar, valLbl, chkInvert, chkLatch, btnMinus, btnPlus });
                     _axisRows.Add(new AxisUiRow
                     {
                         Rule = currentRule,
@@ -467,6 +484,7 @@ namespace GamepadToHotas
                         Bar = bar,
                         ValueLabel = valLbl,
                         InvertCheck = chkInvert,
+                        GroundLatchCheck = chkLatch,
                         SoloBindMinusButton = btnMinus,
                         SoloBindPlusButton = btnPlus
                     });
@@ -620,10 +638,15 @@ namespace GamepadToHotas
                 {
                     row.Bar.Value = val;
                     int pct = (int)Math.Round(((val - VJoyOutput.AXIS_MIN) / (double)(VJoyOutput.AXIS_MAX - VJoyOutput.AXIS_MIN)) * 100.0);
-                    if (row.LastPct != pct)
+                    bool isLatched = row.Rule.groundLatch && _engine.IsAxisGroundLatched(row.Rule.target);
+                    if (row.LastPct != pct || row.LastLatched != isLatched)
                     {
                         row.LastPct = pct;
-                        row.ValueLabel.Text = string.Format("{0}%", pct);
+                        row.LastLatched = isLatched;
+                        row.ValueLabel.Text = isLatched ? string.Format("{0}% [LOCK]", pct) : string.Format("{0}%", pct);
+                        row.ValueLabel.ForeColor = isLatched
+                            ? Color.FromArgb(255, 195, 75)
+                            : Color.FromArgb(170, 200, 240);
                     }
                 }
             }

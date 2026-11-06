@@ -22,6 +22,7 @@ namespace GamepadToHotas
     ///     "Back", "Start", "LeftThumb", "RightThumb",
     ///     "DPadUp", "DPadRight", "DPadDown", "DPadLeft",
     ///     "LeftTriggerButton", "RightTriggerButton"
+    ///   - Stick Proportional PWM Button Sources: "LeftThumbYUp", "LeftThumbYDown"
     ///   - Generic WinMM / DirectInput Buttons: "Button1" through "Button32"
     /// </summary>
     public class ControllerProfile
@@ -66,7 +67,6 @@ namespace GamepadToHotas
             };
             p.axes.Add(new AxisRule { name = "Cyclic Roll (Right Stick X)", source = "RightThumbX", target = "X", invert = false, deadzone = 0.0 });
             p.axes.Add(new AxisRule { name = "Cyclic Pitch (Right Stick Y)", source = "RightThumbY", target = "Y", invert = true, deadzone = 0.0 });
-            p.axes.Add(new AxisRule { name = "Collective / Throttle (Left Stick Y)", source = "LeftThumbY", target = "Z", invert = false, deadzone = 0.0 });
             p.axes.Add(new AxisRule { name = "Yaw / Rudder (Left Stick X)", source = "LeftThumbX", target = "Rz", invert = false, deadzone = 0.0 });
             p.axes.Add(new AxisRule { name = "Left Trigger Axis (LT)", source = "LeftTrigger", target = "Rx", invert = false, deadzone = 0.0 });
             p.axes.Add(new AxisRule { name = "Right Trigger Axis (RT)", source = "RightTrigger", target = "Ry", invert = false, deadzone = 0.0 });
@@ -86,8 +86,8 @@ namespace GamepadToHotas
             p.buttons.Add(new ButtonRule { targetButton = 11, source = "LeftTriggerButton", label = "LT Digital Click (>50%)" });
             p.buttons.Add(new ButtonRule { targetButton = 12, source = "RightTriggerButton", label = "RT Digital Click (>50%)" });
             p.buttons.Add(new ButtonRule { targetButton = 13, source = "DPadUp", label = "D-Pad Up (Button)" });
-            p.buttons.Add(new ButtonRule { targetButton = 14, source = "DPadRight", label = "D-Pad Right (Button)" });
-            p.buttons.Add(new ButtonRule { targetButton = 15, source = "DPadDown", label = "D-Pad Down (Button)" });
+            p.buttons.Add(new ButtonRule { targetButton = 14, source = "LeftThumbYDown", label = "Collective Down (LS Down PWM)" });
+            p.buttons.Add(new ButtonRule { targetButton = 15, source = "LeftThumbYUp", label = "Collective Up (LS Up PWM)" });
             p.buttons.Add(new ButtonRule { targetButton = 16, source = "DPadLeft", label = "D-Pad Left (Button)" });
             return p;
         }
@@ -197,6 +197,7 @@ namespace GamepadToHotas
         public string target { get; set; }
         public bool invert { get; set; }
         public double deadzone { get; set; }
+        public bool groundLatch { get; set; }
     }
 
     public class PovRule

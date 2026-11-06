@@ -16,8 +16,9 @@ Use these notes when modifying code or creating controller profiles in this repo
 
 4. **vJoy Range & Conventions**:
    - `vJoyInterface.dll` is loaded dynamically from `C:\Program Files\vJoy\x64` via `SetDllDirectory`.
-   - Standard vJoy axis range is `1` (`0x1`) to `32768` (`0x8000`) with center at `16384` (`0x4000`).
+   - Standard vJoy axis range is `1` (`0x1`) to `32768` (`0x8000`) with center at `16384` (`0x4000`). Always keep unused or released axes (including triggers at rest) at `16384` (`50%`) and reset to `16384` on `Relinquish`, because *Wardogs* polls all active joystick axes and drifts the in-game cursor if any axis sits at `1` (`0%`).
    - Continuous POV values are in hundredths of a degree (`0` to `35900`, `-1` for neutral).
+   - *Wardogs* (Unreal Engine `GenericUSBController`) only recognizes vJoy buttons `1` through `15` (ignores Button 16+). Therefore, Collective Down (`LeftThumbYDown`) and Collective Up (`LeftThumbYUp`) PWM button sources are mapped to **Buttons #14 and #15**.
 
 5. **Headless Verification**:
    - Run `.\build.ps1` followed by `Start-Process .\GamepadToHotas.exe -ArgumentList "--self-test" -Wait` (which writes `selftest_result.txt`) to verify profile serialization, `MappingEngine` output, and `vJoyInterface.dll` connectivity without opening the WinForms GUI.

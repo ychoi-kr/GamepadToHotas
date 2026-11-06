@@ -31,6 +31,20 @@ namespace GamepadToHotas
         public bool IsPaused { get; set; }
         private bool _comboWasDown = false;
         private SoloBindingPulse _activePulse = null;
+        private readonly Dictionary<string, bool> _groundLatchedAxes = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+
+        public bool IsAxisGroundLatched(string targetAxis)
+        {
+            if (string.IsNullOrEmpty(targetAxis)) return false;
+            bool latched;
+            return _groundLatchedAxes.TryGetValue(targetAxis, out latched) && latched;
+        }
+
+        public void SetAxisGroundLatched(string targetAxis, bool latched)
+        {
+            if (string.IsNullOrEmpty(targetAxis)) return;
+            _groundLatchedAxes[targetAxis] = latched;
+        }
 
         public void CancelBindPulse()
         {
@@ -209,6 +223,16 @@ namespace GamepadToHotas
 
             if (IsPaused || input == null || !input.IsConnected)
             {
+                if (profile.axes != null)
+                {
+                    foreach (var rule in profile.axes)
+                    {
+                        if (rule.groundLatch && !string.IsNullOrEmpty(rule.target))
+                        {
+                            outState.Axes[rule.target] = VJoyOutput.AXIS_MIN;
+                        }
+                    }
+                }
                 return outState;
             }
 
@@ -236,6 +260,39 @@ namespace GamepadToHotas
 
                     raw = Math.Max(-1.0, Math.Min(1.0, raw));
 
+                    // Optional Ground Latch (e.g. Collective Z axis):
+                    // Starts at 0% (AXIS_MIN), latches at 0% when pulled down <= -85%,
+                    // and unlatches when pushed up >= +20%.
+                    if (rule.groundLatch)
+                    {
+                        bool latched;
+                        if (!_groundLatchedAxes.TryGetValue(rule.target, out latched))
+                        {
+                            latched = true;
+                            _groundLatchedAxes[rule.target] = true;
+                        }
+
+                        if (raw <= -0.85)
+                        {
+                            latched = true;
+                            _groundLatchedAxes[rule.target] = true;
+                        }
+                        else if (raw >= 0.20)
+                        {
+                            latched = false;
+                            _groundLatchedAxes[rule.target] = false;
+                        }
+
+                        if (latched)
+                        {
+                            raw = -1.0;
+                        }
+                    }
+                    else
+                    {
+                        _groundLatchedAxes[rule.target] = false;
+                    }
+
                     // Convert [-1.0, +1.0] to vJoy [1, 32768] centered at 16384
                     int vjoyVal = (int)Math.Round(VJoyOutput.AXIS_MID + raw * (VJoyOutput.AXIS_MAX - VJoyOutput.AXIS_MID));
                     if (vjoyVal < VJoyOutput.AXIS_MIN) vjoyVal = VJoyOutput.AXIS_MIN;
@@ -252,7 +309,7 @@ namespace GamepadToHotas
                 {
                     if (bRule.targetButton >= 1 && bRule.targetButton <= 32)
                     {
-                        if (input.IsPressed(bRule.source))
+                        if (EvaluateButtonSource(input, bRule.source))
                         {
                             outState.Buttons[bRule.targetButton - 1] = true;
                         }
@@ -286,6 +343,40 @@ namespace GamepadToHotas
             }
 
             return outState;
+        }
+
+        private static bool EvaluateButtonSource(NormalizedControllerState input, string source)
+        {
+            if (input == null || string.IsNullOrEmpty(source)) return false;
+
+            if (string.Equals(source, "LeftThumbYUp", StringComparison.OrdinalIgnoreCase))
+            {
+                return EvaluateStickPwm(input.GetAxis("LeftThumbY"));
+            }
+            if (string.Equals(source, "LeftThumbYDown", StringComparison.OrdinalIgnoreCase))
+            {
+                return EvaluateStickPwm(-input.GetAxis("LeftThumbY"));
+            }
+
+            return input.IsPressed(source);
+        }
+
+        /// <summary>
+        /// Converts a single-direction stick deflection [0.0..1.0] into a proportional PWM button signal:
+        /// - Below 0.15 deadzone: strictly OFF (false)
+        /// - Above 0.85 deflection: strictly ON (true)
+        /// - Between 0.15 and 0.85: 10Hz PWM pulse proportional to stick deflection for smooth collective feathering.
+        /// </summary>
+        private static bool EvaluateStickPwm(double deflection)
+        {
+            const double deadzone = 0.15;
+            const double fullHold = 0.85;
+            if (deflection <= deadzone) return false;
+            if (deflection >= fullHold) return true;
+
+            double duty = (deflection - deadzone) / (fullHold - deadzone);
+            double phase = ((DateTime.UtcNow.Ticks / 10000L) % 100L) / 100.0;
+            return phase < duty;
         }
     }
 }
